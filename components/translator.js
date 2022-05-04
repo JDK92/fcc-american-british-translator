@@ -8,40 +8,37 @@ class Translator {
     return `<span class="highlight">${word}</span>`;
   }
 
-  spellingOrTitles(word, list, locale) {
-    const words = {};
-    const keyValues = new Map(Object.entries(list));
+  matchRule(word) {
+    return new RegExp(`${word}(?=\\W)`, "ig");
+  }
+
+  differentSpelling(text, list) {
+    let translation = text.toLowerCase();
     
-    for (let [key, value] of keyValues) {
-      if (key == word || value == word) {
-        words.american = key;
-        words.british  = value;
-        break;
+    const words = [];
+
+    const pairs = new Map(Object.entries(list));
+
+    for (let [american, british] of pairs) {
+      const americanRule = this.matchRule(american);
+      const britishRule  = this.matchRule(british);
+
+      if (translation.match(americanRule) || translation.match(britishRule)) {
+        words.push({american, british});
       }
     }
 
-    if (locale == "american-to-british") {
-      return { match: true, ans: this.highlightWord(words.american) };
-    }
-
-    if (locale == "british-to-american") {
-      return { match: true, ans: this.highlightWord(words.british) };
-    }
-
-    return { match: false, ans: word };
-
+    return words;
   }
 
+
   translate(text, locale) {
-    
-    if ( locale == "american-to-british" ) {
-      Object.keys()
-    }
+    let translation = text;
 
-    if ( locale == "british-to-american" ) {
+    return {
+      translation: translation.charAt(0).toUpperCase() + translation.slice(1)
+    };
 
-    }
-  
   }
 
 }

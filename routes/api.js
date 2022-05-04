@@ -25,8 +25,17 @@ module.exports = function (app) {
 
       next();
     }, (req, res) => {
-      const answer = translator.translate(req.body.text, req.body.locale);
+      const { text, locale } = req.body;
+      const { translation }  = translator.translate(text, locale);
+      
+      if (text == translation) {
+        return res.json({
+          text,
+          translation: "Everything looks good to me!"
+        });
+      } else {
 
-      console.log(answer);
+        return res.json({ text, translation });
+      }
     });
 };
