@@ -9,31 +9,95 @@ class Translator {
   }
 
   matchRule(word) {
-    return new RegExp(`${word}(?=\\W)`, "ig");
+    return new RegExp(`${word}(?=[,.?!\\s])`, "ig");
   }
 
-  differentSpelling(text, list) {
-    let translation = text.toLowerCase();
+  spelling(text, list, locale) {
+    let translation = text;
     
-    const words = [];
+    const spellingWords = new Map(Object.entries(list));
 
-    const pairs = new Map(Object.entries(list));
+    for (let [american, british] of spellingWords) {
 
-    for (let [american, british] of pairs) {
-      const americanRule = this.matchRule(american);
-      const britishRule  = this.matchRule(british);
-
-      if (translation.match(americanRule) || translation.match(britishRule)) {
-        words.push({american, british});
+      switch (locale) {
+        case "american-to-british":
+          translation = translation.replace(this.matchRule(american), this.highlightWord(british));
+          break;
+        
+        case "british-to-american":
+          translation = translation.replace(this.matchRule(british), this.highlightWord(american));
+          break;
+        default:
+          break;
       }
     }
 
-    return words;
+    return translation;
   }
 
+  titles(text, list, locale) {
+    let translation = text;
+    
+    const titles = new Map(Object.entries(list));
+
+    for (let [american, british] of titles) {
+      let newTitle = "";
+
+      switch (locale) {
+        case "american-to-british":
+          newTitle = british.charAt(0).toUpperCase() + british.slice(1);
+          translation = translation.replace(this.matchRule(american), this.highlightWord(newTitle));
+          break;
+        
+        case "british-to-american":
+          newTitle = american.charAt(0).toUpperCase() + american.slice(1);
+          translation = translation.replace(this.matchRule(british), this.highlightWord(newTitle));
+          break;
+        
+        default:
+          break;
+      }
+    }
+
+    return translation;
+  }
+
+  uniqueWords(text, locale) {
+    let translation = text;
+    let words;
+
+    switch (locale) {
+      case "american-to-british":
+        words = new Map(Object.entries(americanOnly));
+        
+        for (let [american, british] of words) {
+          translation = translation.replace(this.matchRule(american), this.highlightWord(british));
+        }
+
+        break;
+      
+      case "british-to-american":
+        words = new Map(Object.entries(britishOnly));
+
+        for (let [british, american] of words) {
+          translation = translation.replace(this.matchRule(british), this.highlightWord(american));
+        }
+
+        break;
+    
+      default:
+        break;
+    }
+
+    return translation;
+  }
 
   translate(text, locale) {
     let translation = text;
+
+    translation = this.spelling(translation, americanToBritishSpelling, locale);
+    translation = this.titles(translation, americanToBritishTitles, locale);
+    translation = this.uniqueWords(translation, locale);
 
     return {
       translation: translation.charAt(0).toUpperCase() + translation.slice(1)
@@ -41,6 +105,7 @@ class Translator {
 
   }
 
+  
 }
 
 module.exports = Translator;
