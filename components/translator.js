@@ -8,104 +8,137 @@ class Translator {
     return `<span class="highlight">${word}</span>`;
   }
 
-  matchRule(word) {
-    return new RegExp(`${word}(?=[,.?!\\s])`, "ig");
+  time(text, locale) {
+    const americanTime = /[0-9]{1,2}[:][0-9]{2}/g;
+    const britishTime  = /[0-9]{1,2}[.][0-9]{2}/g;
+    
+    if (!americanTime.test(text) && !britishTime.test(text)) return [];
+    
+    const changes = [];
+    
+    if (locale == "american-to-british") {
+      const timeList = text.match(americanTime);
+
+      timeList.forEach(t => {
+        const newTime = t.replace(":", ".");
+        changes.push({ original: t, translation: newTime });
+      });
+    }
+
+    if (locale == "british-to-american") {
+      const timeList = text.match(britishTime);
+
+      timeList.forEach(t => {
+        const newTime = t.replace(".", ":");
+        changes.push({ original: t, translation: newTime });
+      });
+    }
+
+    return changes;
   }
 
-  spelling(text, list, locale) {
-    let translation = text;
-    
-    const spellingWords = new Map(Object.entries(list));
+  words(text, locale) {
+    const wordRule = (word) => new RegExp(`\\b${word}\\b`, "ig");
+    const changes  = [];
 
-    for (let [american, british] of spellingWords) {
+    let wordPairs;
 
-      switch (locale) {
-        case "american-to-british":
-          translation = translation.replace(this.matchRule(american), this.highlightWord(british));
-          break;
-        
-        case "british-to-american":
-          translation = translation.replace(this.matchRule(british), this.highlightWord(american));
-          break;
-        default:
-          break;
+    if (locale == "american-to-british") wordPairs = new Map(Object.entries(americanOnly));
+    if (locale == "british-to-american") wordPairs = new Map(Object.entries(britishOnly));
+
+    for (let [original, translation] of wordPairs) {
+      const test = wordRule(original).test(text);
+      
+      if (test) {
+        const matches = text.match(wordRule(original));
+        matches.forEach(match => changes.push({ original: match, translation }));
+      }
+
+    }
+
+    return changes;
+  }
+
+  spelling(text, locale) {
+    const wordRule  = (word) => new RegExp(`\\b${word}\\b`, "ig");
+    const wordPairs = new Map(Object.entries(americanToBritishSpelling));
+    const changes   = [];
+
+    for (let [american, british] of wordPairs) {
+
+      if (locale == "american-to-british") {
+        const test = wordRule(american).test(text);
+
+        if (test) {
+          const matches = text.match(wordRule(american));
+          matches.forEach(m => changes.push({ original: m, translation: british }));
+        }
+      }
+
+      if (locale == "british-to-american") {
+        const test = wordRule(british).test(text);
+
+        if (test) {
+          const matches = text.match(wordRule(british));
+          matches.forEach(m => changes.push({ original: m, translation: american }));
+        }
       }
     }
 
-    return translation;
+    return changes;
   }
 
-  titles(text, list, locale) {
-    let translation = text;
+  titles(text, locale) {
+    const americanRule = (title) => new RegExp(`\\b${title}\\B`, "ig");
+    const britishRule  = (title) => new RegExp(`\\b${title}\\b`, "ig");
     
-    const titles = new Map(Object.entries(list));
+    const titles  = new Map(Object.entries(americanToBritishTitles));
+    const changes = [];
 
     for (let [american, british] of titles) {
-      let newTitle = "";
 
-      switch (locale) {
-        case "american-to-british":
-          newTitle = british.charAt(0).toUpperCase() + british.slice(1);
-          translation = translation.replace(this.matchRule(american), this.highlightWord(newTitle));
-          break;
+      if (locale == "american-to-british") {
+        const test = americanRule(american).test(text);
         
-        case "british-to-american":
-          newTitle = american.charAt(0).toUpperCase() + american.slice(1);
-          translation = translation.replace(this.matchRule(british), this.highlightWord(newTitle));
-          break;
-        
-        default:
-          break;
+        if (test) {
+          const matches = text.match(americanRule(american));
+          let newTitle = british.charAt(0).toUpperCase() + british.slice(1);
+          matches.forEach(m => changes.push({ original: m, translation: newTitle }));
+        }
+      }
+
+
+      if (locale == "british-to-american") {
+        const test = britishRule(british).test(text);
+
+        if (test) {
+          const matches = text.match(britishRule(british));
+          let newTitle = american.charAt(0).toUpperCase() + american.slice(1);
+          matches.forEach(m => changes.push({ original: m, translation: newTitle }));
+        }
       }
     }
 
-    return translation;
-  }
-
-  uniqueWords(text, locale) {
-    let translation = text;
-    let words;
-
-    switch (locale) {
-      case "american-to-british":
-        words = new Map(Object.entries(americanOnly));
-        
-        for (let [american, british] of words) {
-          translation = translation.replace(this.matchRule(american), this.highlightWord(british));
-        }
-
-        break;
-      
-      case "british-to-american":
-        words = new Map(Object.entries(britishOnly));
-
-        for (let [british, american] of words) {
-          translation = translation.replace(this.matchRule(british), this.highlightWord(american));
-        }
-
-        break;
-    
-      default:
-        break;
-    }
-
-    return translation;
+    return changes;
   }
 
   translate(text, locale) {
-    let translation = text;
+    let newText = text;
 
-    translation = this.spelling(translation, americanToBritishSpelling, locale);
-    translation = this.titles(translation, americanToBritishTitles, locale);
-    translation = this.uniqueWords(translation, locale);
+    const changes = [
+      ...this.time(text, locale),
+      ...this.words(text, locale),
+      ...this.spelling(text, locale),
+      ...this.titles(text, locale)
+    ];
 
-    return {
-      translation: translation.charAt(0).toUpperCase() + translation.slice(1)
-    };
+    changes.forEach(change => {
+      const { original, translation } = change;
+      newText = newText.replace(original, this.highlightWord(translation));
+    });
 
+    return { translation: newText }
   }
-
-  
 }
 
 module.exports = Translator;
